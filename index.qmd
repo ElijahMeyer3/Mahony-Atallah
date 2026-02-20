@@ -86,8 +86,54 @@ create_spaghetti_plot <- function(data,
     guides(color = "none") +
     facet_wrap(vars(!!facet_var))
 }
+
+create_five_number_summary <- function(data,
+                                       y_var,
+                                       time_var,
+                                       facet_var) {
+  
+  y_var     <- enquo(y_var)
+  time_var  <- enquo(time_var)
+  facet_var <- enquo(facet_var)
+  
+  create_summary_table <- function(data,
+                                 y_var,
+                                 time_var,
+                                 facet_var) {
+  
+  y_var     <- rlang::enquo(y_var)
+  time_var  <- rlang::enquo(time_var)
+  facet_var <- rlang::enquo(facet_var)
+  
+  create_summary_table <- function(data,
+                                 y_var,
+                                 time_var,
+                                 facet_var) {
+  
+  y_var     <- rlang::enquo(y_var)
+  time_var  <- rlang::enquo(time_var)
+  facet_var <- rlang::enquo(facet_var)
+  
+  summary_table <- data |>
+    dplyr::filter(!is.na(!!y_var)) |>
+    dplyr::mutate(!!y_var := as.numeric(!!y_var)) |>
+    dplyr::group_by(!!time_var, !!facet_var) |>
+    dplyr::summarise(
+      mean   = mean(!!y_var, na.rm = TRUE),
+      median = median(!!y_var, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  return(summary_table)
+}
 ```
 
 ```{webr-r}
 create_spaghetti_plot(kma_clean, uniqueid, SCS_1, Time_text, Group_code)
 ```
+
+
+```{webr-r}
+ create_summary_table(kma_clean, SCS_1, Time_text, Group_code)
+```
+
