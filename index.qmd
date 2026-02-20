@@ -9,16 +9,18 @@ webr:
   cell-options:
     autorun: false
   resources:
-    - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/main/data/kma_clean.csv
+    - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/refs/heads/main/data/kma_clean
 ---
 
-### Packages
 
 ```{r}
 #| message: false
+#| echo: false
 #| warning: false
 library(tidyverse)
 library(rlang)
+
+kma_clean <- read_csv("kma_clean.csv")
 ```
 
 #### plot
@@ -26,6 +28,8 @@ library(rlang)
 ```{webr-r}
 #| edit: false
 #| output: false
+
+kma_clean <- read_csv("kma_clean.csv")
 
 create_spaghetti_plot <- function(data,
                                   id_var,
