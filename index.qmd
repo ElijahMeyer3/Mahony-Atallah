@@ -21,9 +21,10 @@ library(tidyverse)
 library(rlang)
 
 kma_clean <- read_csv("kma_clean.csv")
+
 ```
 
-#### Line plot for SCS items acrouss Group codes (0; 1)
+#### Line plot for SCS items across Group codes (0; 1)
 
 ```{webr-r}
 #| edit: false
@@ -36,9 +37,8 @@ create_spaghetti_plot <- function(data,
                                   y_var,
                                   time_var,
                                   facet_var) {
-  
-  data <- fct_relevel(data$Time_text, "pre")
-  
+
+  data$Time_text <- forcats::fct_relevel(data$Time_text, "pre")
   
   id_var    <- enquo(id_var)
   y_var     <- enquo(y_var)
