@@ -1,5 +1,5 @@
 ---
-title: "undergrad wellness"
+title: "Undergrad wellness"
 format: live-html
 webr:
   packages: 
@@ -9,7 +9,7 @@ webr:
   cell-options:
     autorun: false
   resources:
-    - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/refs/heads/main/data/kma_clean
+    - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/refs/heads/main/data/kma_clean.csv
 ---
 
 
@@ -23,7 +23,7 @@ library(rlang)
 kma_clean <- read_csv("kma_clean.csv")
 ```
 
-#### plot
+#### Line plot for SCS items acrouss Group codes (0; 1)
 
 ```{webr-r}
 #| edit: false
@@ -36,6 +36,8 @@ create_spaghetti_plot <- function(data,
                                   y_var,
                                   time_var,
                                   facet_var) {
+  
+  data <- fct_relevel(data$Time_text, "pre")
   
   
   id_var    <- enquo(id_var)
