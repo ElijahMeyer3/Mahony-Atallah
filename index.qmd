@@ -5,97 +5,83 @@ webr:
   packages: 
     - tidyverse
     - scales
+    - rlang
   cell-options:
     autorun: false
   resources:
-    - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/main/data/`Undergraduate Character Strengths Data.xlsx`
+    - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/main/data/kma_clean.csv
 ---
 
 ### Packages
 
 ```{r}
+#| message: false
+#| warning: false
 library(tidyverse)
-library(readxl)
+library(rlang)
 ```
 
+#### plot
 
-### Data
+```{webr-r}
+#| edit: false
+#| output: false
 
-```{r}
-kma <- read_xlsx("data/MiniGrant_Data in Full KMA.xlsx")
-
-kma_clean <- kma |>
-  fill(DOB:Major_code, .direction = "down") |>
-  mutate(across(everything(), as.character)) |>
-  mutate(across(everything(), ~na_if(.x, "."))) |>
-  mutate(DOB = replace(DOB, DOB == "39179", "04/07/2007"))
+create_spaghetti_plot <- function(data,
+                                  id_var,
+                                  y_var,
+                                  time_var,
+                                  facet_var) {
   
-
   
-kma_clean$DOB
-
-kma_clean$SCS_1
-```
-
-Questions: 
-
-What do the dots mean? Different than NA?
-
-What do the dots mean as they pertain to SWLS/PANAS/CSSWQ/SC scores?
-
-ID65 has a DOB of: 39179 ???
-
-What is the `Interest_School Psych Test` variable? Why do some participants have > 1 entry and others don't?
-
-The `Appeal` variables are binary. What are these?
-
-
-
-
-### EDA
-
-```{r}
-kma_clean |>
-  count(Gender_text, Race_text) |>
-  mutate(n = n /3)
-
-kma_clean |>
-  count(Year_text, Major_code) |>
-  mutate(n = n /3) |>
-  arrange(desc(n))
+  id_var    <- enquo(id_var)
+  y_var     <- enquo(y_var)
+  time_var  <- enquo(time_var)
+  facet_var <- enquo(facet_var)
+  uniqueid <- data$uniqueid
   
-```
-
-
-## Playing 
-
-```{r}
-kma_clean$Time_text <- fct_relevel(kma_clean$Time_text, "pre")
-
-kma_clean |>
-  # Generate the ID column
-  mutate(uniqueid = rep(1:65, each = 3)) |>
-  # Remove NAs before plotting
-  filter(!is.na(SCS_1)) |>
-  ggplot(aes(
-    y = SCS_1, 
-    x = Time_text, 
-    group = uniqueid,   # Removed the period; this connects the points
-    color = factor(uniqueid) # Optional: colors each line differently
+  # Remove NAs
+  plot_data <- data |>
+    filter(!is.na(!!y_var))
+  
+  # Compute means
+  middle <- plot_data |>
+    mutate(!!y_var := as.numeric(!!y_var)) |>
+    group_by(!!time_var, !!facet_var) |>
+    summarise(mean_score = mean(!!y_var), .groups = "drop")
+  
+  ggplot(plot_data, aes(
+    y = !!y_var,
+    x = !!time_var,
+    group = !!id_var,
+    color = factor(!!id_var)
   )) +
-  geom_point() + 
-  geom_line() +
-  geom_point(data = middle, aes(y = mean_score), pch = 16, size = 6) +
-  geom_line(data = middle, aes(y = mean_score), lwd = 2, color = "black") +
-  theme_minimal() +
-  guides(color = "none") +
-  facet_grid(~Group_code)
-
-middle <- kma_clean |>
-  filter(!is.na(SCS_1)) |>
-  mutate(SCS_1 = as.numeric(SCS_1)) |> 
-  group_by(Time_text, Group_code) |>
-  summarise(mean_score = mean(SCS_1)) |>
-  mutate(uniqueid = rep(66,1))
+    geom_point() +
+    geom_line() +
+    
+    # Mean points
+    geom_point(data = middle,
+               aes(x = !!time_var,
+                   y = mean_score),
+               inherit.aes = FALSE,
+               size = 6,
+               color = "red") +
+    
+    # Mean line
+    geom_line(data = middle,
+              aes(x = !!time_var,
+                  y = mean_score,
+                  group = !!facet_var),
+              inherit.aes = FALSE,
+              linewidth = 2,
+              color = "black") +
+    
+    theme_minimal() +
+    guides(color = "none") +
+    facet_wrap(vars(!!facet_var))
+}
 ```
 
+```{webr-r}
+create_spaghetti_plot(kma_clean, uniqueid, SCS_1, Time_text, Group_code)
+```
