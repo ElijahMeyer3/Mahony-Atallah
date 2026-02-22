@@ -7,13 +7,17 @@ webr:
     - scales
     - rlang
   cell-options:
-    autorun: false
+    autorun: true
   resources:
     - https://raw.githubusercontent.com/ElijahMeyer3/Mahony-Atallah/refs/heads/main/data/kma_clean.csv
 ---
 
+Change the SCS_1 to be any question number through SCS_12!
+
+Filter by one or multiple ids to look at individual participants. Use `c(2,4)` to look at participant 2 and 4. If you put a number of a participant that is not in the study, no plot will render.
 
 ```{r}
+#| include: false
 #| message: false
 #| echo: false
 #| warning: false
@@ -22,21 +26,27 @@ library(rlang)
 
 kma_clean <- read_csv("kma_clean.csv")
 
-```
+kma_ind <- kma_clean |>   
+  select(contains("SCS"), uniqueid, Time_text, Group_code) |>
+  na.omit() |>
+  group_by(uniqueid)  |>
+  summarize(count = n()) |>
+  filter(count >=3) |>
+    ungroup()
 
-#### Line plot for SCS items across Group codes (0; 1)
+kma_clean <- kma_clean |>
+  select(contains("SCS"), uniqueid, Time_text, Group_code) |>
+  na.omit() |>
+  filter(uniqueid %in% kma_ind$uniqueid) |>
+  mutate(Group_code = factor(Group_code))
 
-```{webr-r}
-#| edit: false
-#| output: false
-
-kma_clean <- read_csv("kma_clean.csv")
 
 create_spaghetti_plot <- function(data,
                                   id_var,
                                   y_var,
                                   time_var,
-                                  facet_var) {
+                                  facet_var,
+                                  filter_id = NA) {
 
   data$Time_text <- forcats::fct_relevel(data$Time_text, "pre")
   
@@ -44,17 +54,22 @@ create_spaghetti_plot <- function(data,
   y_var     <- enquo(y_var)
   time_var  <- enquo(time_var)
   facet_var <- enquo(facet_var)
-  uniqueid <- data$uniqueid
+  
+  # Optional filtering by uniqueid
+  if (!all(is.na(filter_id))) {
+    data <- data |> 
+      dplyr::filter(uniqueid %in% filter_id)
+  }
   
   # Remove NAs
   plot_data <- data |>
-    filter(!is.na(!!y_var))
+    dplyr::filter(!is.na(!!y_var))
   
   # Compute means
   middle <- plot_data |>
-    mutate(!!y_var := as.numeric(!!y_var)) |>
-    group_by(!!time_var, !!facet_var) |>
-    summarise(mean_score = mean(!!y_var), .groups = "drop")
+    dplyr::mutate(!!y_var := as.numeric(!!y_var)) |>
+    dplyr::group_by(!!time_var, !!facet_var) |>
+    dplyr::summarise(mean_score = mean(!!y_var), .groups = "drop")
   
   ggplot(plot_data, aes(
     y = !!y_var,
@@ -87,23 +102,9 @@ create_spaghetti_plot <- function(data,
     facet_wrap(vars(!!facet_var))
 }
 
-create_five_number_summary <- function(data,
-                                       y_var,
-                                       time_var,
-                                       facet_var) {
+
   
-  y_var     <- enquo(y_var)
-  time_var  <- enquo(time_var)
-  facet_var <- enquo(facet_var)
-  
-  create_summary_table <- function(data,
-                                 y_var,
-                                 time_var,
-                                 facet_var) {
-  
-  y_var     <- rlang::enquo(y_var)
-  time_var  <- rlang::enquo(time_var)
-  facet_var <- rlang::enquo(facet_var)
+
   
   create_summary_table <- function(data,
                                  y_var,
@@ -128,12 +129,143 @@ create_five_number_summary <- function(data,
 }
 ```
 
+#### Line plot for SCS items across Group codes (0; 1)
+
 ```{webr-r}
-create_spaghetti_plot(kma_clean, uniqueid, SCS_1, Time_text, Group_code)
+#| edit: false
+#| output: false
+
+kma_clean <- read_csv("kma_clean.csv")
+
+kma_ind <- kma_clean |>   
+  select(contains("SCS"), uniqueid, Time_text, Group_code) |>
+  na.omit() |>
+  group_by(uniqueid)  |>
+  summarize(count = n()) |>
+  filter(count >=3) |>
+    ungroup()
+
+kma_clean <- kma_clean |>
+  select(contains("SCS"), uniqueid, Time_text, Group_code) |>
+  na.omit() |>
+  filter(uniqueid %in% kma_ind$uniqueid) |>
+  mutate(Group_code = factor(Group_code))
+
+create_spaghetti_plot <- function(data,
+                                  id_var,
+                                  y_var,
+                                  time_var,
+                                  facet_var,
+                                  filter_id = NA) {
+
+  data$Time_text <- forcats::fct_relevel(data$Time_text, "pre")
+  
+  id_var    <- enquo(id_var)
+  y_var     <- enquo(y_var)
+  time_var  <- enquo(time_var)
+  facet_var <- enquo(facet_var)
+  
+  # Optional filtering by uniqueid
+  if (!all(is.na(filter_id))) {
+    data <- data |> 
+      dplyr::filter(uniqueid %in% filter_id)
+  }
+  
+  # Remove NAs
+  plot_data <- data |>
+    dplyr::filter(!is.na(!!y_var))
+  
+  # Compute means
+  middle <- plot_data |>
+    dplyr::mutate(!!y_var := as.numeric(!!y_var)) |>
+    dplyr::group_by(!!time_var, !!facet_var) |>
+    dplyr::summarise(mean_score = mean(!!y_var), .groups = "drop")
+  
+  ggplot(plot_data, aes(
+    y = !!y_var,
+    x = !!time_var,
+    group = !!id_var,
+    color = factor(!!id_var)
+  )) +
+    geom_point() +
+    geom_line() +
+    
+    # Mean points
+    geom_point(data = middle,
+               aes(x = !!time_var,
+                   y = mean_score),
+               inherit.aes = FALSE,
+               size = 6,
+               color = "red") +
+    
+    # Mean line
+    geom_line(data = middle,
+              aes(x = !!time_var,
+                  y = mean_score,
+                  group = !!facet_var),
+              inherit.aes = FALSE,
+              linewidth = 2,
+              color = "black") +
+    
+    theme_minimal() +
+    guides(color = "none") +
+    facet_wrap(vars(!!facet_var))
+}
+
+  
+
+  
+  create_summary_table <- function(data,
+                                 y_var,
+                                 time_var,
+                                 facet_var) {
+  
+  y_var     <- rlang::enquo(y_var)
+  time_var  <- rlang::enquo(time_var)
+  facet_var <- rlang::enquo(facet_var)
+  
+  summary_table <- data |>
+    dplyr::filter(!is.na(!!y_var)) |>
+    dplyr::mutate(!!y_var := as.numeric(!!y_var)) |>
+    dplyr::group_by(!!time_var, !!facet_var) |>
+    dplyr::summarise(
+      mean   = mean(!!y_var, na.rm = TRUE),
+      median = median(!!y_var, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  return(summary_table)
+}
 ```
 
 
 ```{webr-r}
- create_summary_table(kma_clean, SCS_1, Time_text, Group_code)
+create_spaghetti_plot(kma_clean, uniqueid, SCS_1, Time_text, Group_code, filter_id = NA)
 ```
 
+
+```{webr-r}
+create_summary_table(kma_clean, SCS_1, Time_text, Group_code)
+```
+
+#### Participant Number by Group 
+
+This can help you filter!
+
+```{r}
+kma_clean |>
+  filter(Group_code == 1) |>
+  select(uniqueid, Group_code) |>
+  distinct(uniqueid, Group_code) |>
+  arrange(desc(Group_code)) |>
+  print(n = nrow(kma_clean))
+```
+
+```{r}
+kma_clean |>
+  filter(Group_code == 0) |>
+  select(uniqueid, Group_code) |>
+  distinct(uniqueid, Group_code) |>
+  arrange(desc(Group_code)) |>
+  print(n = nrow(kma_clean))
+```
